@@ -1,0 +1,48 @@
+#include "SevSeg.h"
+#include <virtuabotixRTC.h>
+#include "DHT.h"
+
+#define DHTPIN A3 // DHT11'in veri pini
+#define DHTTYPE DHT11 // DHT11 kullanıyoruz
+
+DHT dht(DHTPIN, DHTTYPE);
+virtuabotixRTC Saat(A0, A1, A2);
+SevSeg ekran;
+unsigned long sure = millis();
+unsigned long gecikmeSuresi = 5000; // 5 saniye bekleme süresi
+bool saatGoster = true;
+
+void setup() {
+  byte basamak = 4;
+  byte digitPin[] = {2, 3, 4, 5};
+  byte segmentPin[] = {6, 7, 8, 9, 10, 11, 12, 13};
+  byte tur = COMMON_CATHODE; // COMMON_CATHODE veya COMMON_ANODE
+  bool direnc = false;
+  bool otosure = false;
+  bool sifirlar = true; // Gizlemek için false yapınız.
+  ekran.begin(tur, basamak, digitPin, segmentPin, direnc, otosure, sifirlar);
+  ekran.setBrightness(90); // Ekran Parlaklığı
+  dht.begin();
+}
+
+void loop() {
+  if (millis() - sure >= gecikmeSuresi) {
+    sure = millis();
+    if (saatGoster) {
+      Saat.updateTime(); // Saati Güncelle
+      int saat = Saat.hours * 100 + Saat.minutes; // Saati Oku ve hesapla
+      ekran.setNumber(saat, 2); // 2.kısma nokta koyar
+    } else {
+      float sicaklik = dht.readTemperature(); // Sıcaklığı oku
+      if (isnan(sicaklik)) {
+        ekran.setChars("Err "); // Hata varsa ekranda Err göster
+      } else {
+        char tempStr[5]; // Sıcaklık değeri ve 'C' harfi için dizi
+        sprintf(tempStr, "%2dC", (int)sicaklik); // Sıcaklık değerini ve 'C' harfini diziye yaz
+        ekran.setChars(tempStr); // Sıcaklığı ve 'C' harfini göster
+      }
+    }
+    saatGoster = !saatGoster; // Gösterim modunu değiştir
+  }
+  ekran.refreshDisplay(); // Ekranı güncelle
+}
